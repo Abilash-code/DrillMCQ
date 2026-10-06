@@ -320,4 +320,70 @@ describe('extractJson', () => {
   it('fails on a balanced but malformed object', () => {
     expect(extractJson('{a: 1,}').ok).toBe(false)
   })
+
+  // Recovery for providers without enforced structured output.
+
+  it('parses a fenced block that follows prose and precedes commentary', () => {
+    const result = extractJson('Sure — here it is:\n```json\n{"a":1}\n```\nLet me know!')
+    expect(result.ok && result.value).toEqual({ a: 1 })
+  })
+
+  it('parses a fence with no language tag', () => {
+    const result = extractJson('```\n{"a":[1,2]}\n```')
+    expect(result.ok && result.value).toEqual({ a: [1, 2] })
+  })
+
+  it('parses a bare array', () => {
+    const result = extractJson('[{"a":1},{"a":2}]')
+    expect(result.ok && result.value).toEqual([{ a: 1 }, { a: 2 }])
+  })
+
+  it('parses a fenced array', () => {
+    const result = extractJson('```json\n[1, 2, 3]\n```')
+    expect(result.ok && result.value).toEqual([1, 2, 3])
+  })
+
+  it('finds an array in prose when there is no object anywhere', () => {
+    const result = extractJson('The indexes are [1, 3].')
+    expect(result.ok && result.value).toEqual([1, 3])
+  })
+
+  it('prefers the object over an index-style array in the prose before it', () => {
+    // Prompts address options as [0], [1] — that prose is valid JSON too.
+    const result = extractJson('Option [1] is correct:\n{"correctOptionIndexes":[1]}')
+    expect(result.ok && result.value).toEqual({ correctOptionIndexes: [1] })
+  })
+
+  it('skips a malformed object and takes the first valid one after it', () => {
+    const result = extractJson('For example {like this}. The answer: {"a":1}')
+    expect(result.ok && result.value).toEqual({ a: 1 })
+  })
+
+  it('does not return a fragment from inside a malformed object', () => {
+    const result = extractJson('{broken: {"inner": 1}}')
+    expect(result.ok).toBe(false)
+  })
+
+  it('does not return an array fragment from inside a truncated object', () => {
+    const result = extractJson('{"verifications": [1, 2], "notes": "cut of')
+    expect(result.ok).toBe(false)
+    expect(!result.ok && result.error).toMatch(/incomplete/)
+  })
+
+  it('rejects a bare scalar — no schema here is a scalar', () => {
+    expect(extractJson('42').ok).toBe(false)
+    expect(extractJson('"just a string"').ok).toBe(false)
+  })
+
+  it('handles brackets inside strings while scanning', () => {
+    const result = extractJson('note: {"text":"A) [x] {y}","notes":[]} done')
+    expect(result.ok && result.value).toEqual({ text: 'A) [x] {y}', notes: [] })
+  })
+
+  it('never throws on hostile input', () => {
+    for (const input of ['', '```', '```json', '{{{{', ']]]]', '"\\', '{"a":"\\']) {
+      expect(() => extractJson(input)).not.toThrow()
+      expect(extractJson(input).ok).toBe(false)
+    }
+  })
 })

@@ -1,4 +1,9 @@
-import type { AIProviderId } from '../../types/ai'
+import type { AIProviderId, OpenAICompatibleProviderId } from '../../types/ai'
+import {
+  OPENAI_COMPATIBLE_PRESETS,
+  type BrowserSupport,
+  type OpenAICompatiblePreset,
+} from './providerRegistry'
 
 /**
  * Curated model catalog. Short on purpose — the `Custom model ID…` option in
@@ -15,7 +20,7 @@ export interface ModelOption {
 export interface ProviderMeta {
   id: AIProviderId
   label: string
-  models: ModelOption[]
+  models: readonly ModelOption[]
   defaultModel: string
   /** Shape hint for the key input. Never a real key. */
   keyPlaceholder: string
@@ -23,7 +28,29 @@ export interface ProviderMeta {
   keysUrl: string
   /** Extra warning shown in settings — set where browser use needs a caveat. */
   browserNote?: string
+  /** Shown as a label in settings. Set for the OpenAI-compatible presets. */
+  browserSupport?: BrowserSupport
+  /** The fixed host requests go to, shown so the user can see where the key is sent. */
+  apiHost?: string
 }
+
+/** Settings metadata for a registry preset — the registry stays the one source. */
+function compatibleMeta(preset: OpenAICompatiblePreset): ProviderMeta {
+  return {
+    id: preset.id,
+    label: preset.label,
+    models: preset.defaultModels,
+    defaultModel: preset.defaultModel,
+    keyPlaceholder: preset.keyPlaceholder,
+    keysUrl: preset.keysUrl,
+    browserSupport: preset.browserSupport,
+    apiHost: new URL(preset.baseUrl).host,
+  }
+}
+
+const COMPATIBLE_META = Object.fromEntries(
+  Object.values(OPENAI_COMPATIBLE_PRESETS).map((preset) => [preset.id, compatibleMeta(preset)]),
+) as Record<OpenAICompatibleProviderId, ProviderMeta>
 
 export const PROVIDERS: Record<AIProviderId, ProviderMeta> = {
   openai: {
@@ -68,12 +95,16 @@ export const PROVIDERS: Record<AIProviderId, ProviderMeta> = {
       'api.anthropic.com, so prefer a key scoped to this use and avoid "remember on this ' +
       'device" on a shared computer.',
   },
+  ...COMPATIBLE_META,
 }
 
 export const PROVIDER_LIST: ProviderMeta[] = [
   PROVIDERS.openai,
   PROVIDERS.gemini,
   PROVIDERS.anthropic,
+  PROVIDERS.deepseek,
+  PROVIDERS.mistral,
+  PROVIDERS.xai,
 ]
 
 export function defaultModelFor(provider: AIProviderId): string {

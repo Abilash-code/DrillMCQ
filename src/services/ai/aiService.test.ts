@@ -72,6 +72,9 @@ const responses: Record<AIProviderId, unknown> = {
     stop_reason: 'end_turn',
     usage: { input_tokens: 5, output_tokens: 7 },
   },
+  deepseek: { choices: [{ message: { content: PAYLOAD }, finish_reason: 'stop' }] },
+  mistral: { choices: [{ message: { content: PAYLOAD }, finish_reason: 'stop' }] },
+  xai: { choices: [{ message: { content: PAYLOAD }, finish_reason: 'stop' }] },
 }
 
 /** The single fetch call the mock recorded, decoded. */
@@ -300,6 +303,9 @@ describe('no sampling parameters are ever sent', () => {
     ['openai', 'gpt-5-mini'],
     ['gemini', 'gemini-2.5-flash'],
     ['anthropic', 'claude-sonnet-5'],
+    ['deepseek', 'deepseek-flash'],
+    ['mistral', 'mistral-small-latest'],
+    ['xai', 'grok-4.3'],
   ])('%s', async (provider, model) => {
     fetchMock.mockResolvedValue(ok(responses[provider]))
     await sendAIRequest(makeRequest(), { config: makeConfig({ provider, model }), apiKey: KEY })

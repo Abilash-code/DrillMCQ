@@ -249,15 +249,24 @@ function stripFence(text: string): string {
 // Raw text -> JSON
 // ---------------------------------------------------------------------------
 
-/**
- * Pull a JSON object out of a model response that may be fenced or preceded by
- * prose. Scans for the first balanced `{…}`, skipping braces inside strings.
- */
-export function extractJson(text: string): AIValidation<unknown> {
-  const source = stripFence(text)
-  const start = source.indexOf('{')
-  if (start === -1) return { ok: false, error: 'The AI response contained no JSON.' }
+/** A fenced block anywhere in the text, not only one wrapping the whole reply. */
+const ANY_FENCE_RE = /```[\w-]*[^\S\r\n]*\r?\n([\s\S]*?)```/
 
+/** Parse `text` only if it is a JSON object or array; a bare scalar is no answer. */
+function parseContainer(text: string): { value: unknown } | null {
+  try {
+    const value: unknown = JSON.parse(text)
+    return typeof value === 'object' && value !== null ? { value } : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Index of the bracket closing the one at `start`, or -1 if the text ends
+ * first. Brackets inside JSON strings, escaped quotes included, don't count.
+ */
+function findClose(source: string, start: number, open: string, close: string): number {
   let depth = 0
   let inString = false
   let escaped = false
@@ -273,18 +282,86 @@ export function extractJson(text: string): AIValidation<unknown> {
     }
 
     if (char === '"') inString = true
-    else if (char === '{') depth++
-    else if (char === '}') {
+    else if (char === open) depth++
+    else if (char === close) {
       depth--
-      if (depth === 0) {
-        try {
-          return { ok: true, value: JSON.parse(source.slice(start, i + 1)) }
-        } catch {
-          return { ok: false, error: 'The AI returned malformed JSON.' }
-        }
-      }
+      if (depth === 0) return i
     }
   }
+  return -1
+}
 
-  return { ok: false, error: 'The AI returned incomplete JSON.' }
+type ScanResult = { value: unknown } | 'none' | 'malformed' | 'incomplete'
+
+/**
+ * The first top-level balanced `open…close` run in `source` that parses.
+ *
+ * A balanced run that doesn't parse ("an example {like this}") is stepped over
+ * *whole*, so the search resumes after it rather than inside it — otherwise a
+ * fragment of a broken object could be returned as if it were the answer. An
+ * unbalanced run ends the search for the same reason: everything after its
+ * opener is inside it, and a truncated reply must fail, not yield a fragment.
+ */
+function scanBalanced(source: string, open: string, close: string): ScanResult {
+  let from = 0
+  let sawMalformed = false
+
+  for (;;) {
+    const start = source.indexOf(open, from)
+    if (start === -1) return sawMalformed ? 'malformed' : 'none'
+
+    const end = findClose(source, start, open, close)
+    if (end === -1) return 'incomplete'
+
+    const parsed = parseContainer(source.slice(start, end + 1))
+    if (parsed !== null) return parsed
+
+    sawMalformed = true
+    from = end + 1
+  }
+}
+
+/**
+ * Recover one JSON value from a model reply. Pure, and never throws.
+ *
+ * Every provider is asked for bare JSON, but a model without enforced
+ * structured output — and occasionally one with it — wraps the answer in a
+ * markdown fence, puts a sentence in front of it, or adds commentary after.
+ * Tried in order, first success wins:
+ *
+ * 1. the whole reply, minus a fence wrapping all of it;
+ * 2. the body of the first fenced block anywhere in the reply;
+ * 3. the first balanced `{…}` that parses (see `scanBalanced`);
+ * 4. only if the reply holds no `{` at all, the first balanced `[…]`.
+ *
+ * Objects are searched before arrays on purpose. Every schema in this folder
+ * asks for an object, and the prompts address options as `[0]`, `[1]` — so
+ * prose like "option [1] is correct" is valid JSON that must not win over the
+ * object that follows it. A bare array still comes back through step 1 or 2.
+ *
+ * Recovering the JSON is not accepting it: the caller still runs the matching
+ * `validate*Response`, so nothing recovered here reaches a quiz unchecked.
+ */
+export function extractJson(text: string): AIValidation<unknown> {
+  const whole = parseContainer(stripFence(text).trim())
+  if (whole !== null) return { ok: true, value: whole.value }
+
+  const fenced = ANY_FENCE_RE.exec(text)
+  if (fenced !== null) {
+    const inner = parseContainer(fenced[1].trim())
+    if (inner !== null) return { ok: true, value: inner.value }
+  }
+
+  const object = scanBalanced(text, '{', '}')
+  if (typeof object === 'object') return { ok: true, value: object.value }
+
+  // Only when there was no object at all: an array found inside a truncated
+  // or broken object would be a fragment of it, not the answer.
+  const verdict = object === 'none' ? scanBalanced(text, '[', ']') : object
+  if (typeof verdict === 'object') return { ok: true, value: verdict.value }
+  if (verdict === 'incomplete') {
+    return { ok: false, error: 'The AI returned incomplete JSON. It may have run out of room — try again.' }
+  }
+  if (verdict === 'malformed') return { ok: false, error: 'The AI returned malformed JSON.' }
+  return { ok: false, error: 'The AI response contained no JSON.' }
 }

@@ -466,10 +466,19 @@ DrillMCQ can use an AI model as a second opinion. It is **off by default and the
 app is fully usable without it** — every feature above works untouched.
 
 Because there is no backend, you bring your own API key: open ⚙️ **Settings** in
-the header → **Configure AI assistant**, pick a provider (OpenAI, Google Gemini
-or Anthropic Claude), choose a model, paste your key, and hit **Test
-connection**. A green dot on the settings button means the assistant is
-configured; it turns into a spinner while a request is in flight.
+the header → **Configure AI assistant**, pick a provider (OpenAI, Google Gemini,
+Anthropic Claude, DeepSeek, Mistral or xAI Grok), choose a model, paste your
+key, and hit **Test connection**. A green dot on the settings button means the
+assistant is configured; it turns into a spinner while a request is in flight.
+
+The model list for each provider is a short suggestion list — model names change
+often, so **Custom model ID…** lets you type any model your provider offers.
+
+DeepSeek, Mistral and xAI are labelled *Browser access: unverified*: their APIs
+are called straight from your browser, and none of them documents whether that is
+supported. If the browser blocks the request, **Test connection** says so
+explicitly — pick another provider in that case. Their endpoints are fixed and
+cannot be edited, so your key only ever goes to the provider's official API.
 
 Once it is on, four optional actions appear:
 
@@ -576,7 +585,9 @@ src/
  │    └── ai/                  # Provider-agnostic AI transport
  │         ├── aiService.ts    # Facade: send, normalize, redact keys
  │         ├── models.ts       # Curated model catalog per provider
- │         └── providers/      # openai / gemini / anthropic over fetch
+ │         ├── providerRegistry.ts # DeepSeek / Mistral / xAI presets
+ │         └── providers/      # openai / gemini / anthropic, plus one
+ │                             #   shared openaiCompatible client
  ├── types/
  │    ├── quiz.ts              # Shared TypeScript types
  │    ├── navigation.ts        # The four top-level destinations

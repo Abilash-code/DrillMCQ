@@ -3,12 +3,14 @@ import { createAnthropicProvider } from './providers/anthropic'
 import { createGeminiProvider } from './providers/gemini'
 import { aiError, isAIError } from './providers/http'
 import { createOpenAIProvider } from './providers/openai'
+import { createOpenAICompatibleProvider } from './providers/openaiCompatible'
+import { OPENAI_COMPATIBLE_PRESETS } from './providerRegistry'
 import type { AIError, AIProvider, AIRequest, AIResponse } from './types'
 
 /**
  * Provider-agnostic facade. Picks the provider, sends the request, and
  * normalizes both responses and errors so nothing above this layer knows
- * whether it is talking to OpenAI, Gemini or Anthropic.
+ * which provider it is talking to.
  *
  * Nothing here throws — every path returns an `AIOutcome`.
  */
@@ -29,6 +31,14 @@ export function createProvider(config: AIConfig, apiKey: string): AIProvider {
       return createGeminiProvider(config.model, apiKey)
     case 'anthropic':
       return createAnthropicProvider(config.model, apiKey)
+    case 'deepseek':
+    case 'mistral':
+    case 'xai':
+      return createOpenAICompatibleProvider(
+        OPENAI_COMPATIBLE_PRESETS[config.provider],
+        config.model,
+        apiKey,
+      )
   }
 }
 

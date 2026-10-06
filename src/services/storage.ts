@@ -341,7 +341,19 @@ function normalizeList<T>(value: unknown, normalize: (item: unknown) => T | null
   return out
 }
 
-const AI_PROVIDER_IDS: AIProviderId[] = ['openai', 'gemini', 'anthropic']
+/**
+ * Every provider id a stored preference may name. A new id only widens what
+ * loads, so prefs saved before DeepSeek/Mistral/xAI existed read back exactly
+ * as they were — no `migrate()` step, no key bump.
+ */
+const AI_PROVIDER_IDS: AIProviderId[] = [
+  'openai',
+  'gemini',
+  'anthropic',
+  'deepseek',
+  'mistral',
+  'xai',
+]
 
 /** Default preferences: AI off, nothing configured, key not persisted. */
 export function defaultAIConfig(): AIConfig {

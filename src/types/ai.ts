@@ -8,7 +8,14 @@
  * reach up into a service boundary.
  */
 
-export type AIProviderId = 'openai' | 'gemini' | 'anthropic'
+/**
+ * Providers served by the one shared OpenAI-style chat-completions client
+ * (`services/ai/providers/openaiCompatible.ts`), configured as presets in
+ * `services/ai/providerRegistry.ts` rather than as their own modules.
+ */
+export type OpenAICompatibleProviderId = 'deepseek' | 'mistral' | 'xai'
+
+export type AIProviderId = 'openai' | 'gemini' | 'anthropic' | OpenAICompatibleProviderId
 
 /** What the assistant is being asked to do. Picks the prompt and validator. */
 export type AIRequestKind =

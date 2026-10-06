@@ -503,6 +503,59 @@ describe('AI preferences', () => {
   })
 })
 
+describe('AI preferences — added providers', () => {
+  it.each([
+    // Exactly what the previous version wrote, byte for byte, for each of its providers.
+    ['openai', 'gpt-5-mini', false],
+    ['gemini', 'gemini-2.5-flash', false],
+    ['anthropic', 'my-pinned-claude-model', true],
+  ] as const)('loads a %s preference saved before the new providers existed', (provider, model, custom) => {
+    const blob = {
+      enabled: true,
+      provider,
+      model,
+      customModel: custom,
+      rememberKey: true,
+      maxBatchQuestions: 30,
+    }
+    storage.setItem(AI_PREFS_KEY, JSON.stringify(blob))
+    expect(loadAIConfig()).toEqual(blob)
+  })
+
+  it('loads an old preference written before optional fields existed', () => {
+    storage.setItem(AI_PREFS_KEY, JSON.stringify({ enabled: true, provider: 'gemini' }))
+    expect(loadAIConfig()).toEqual({ ...defaultAIConfig(), enabled: true, provider: 'gemini' })
+  })
+
+  it.each(['deepseek', 'mistral', 'xai'] as const)('round-trips %s', (provider) => {
+    saveAIConfig({ ...defaultAIConfig(), enabled: true, provider, model: 'custom-id', customModel: true })
+    const loaded = loadAIConfig()
+    expect(loaded.provider).toBe(provider)
+    expect(loaded.model).toBe('custom-id')
+    expect(loaded.customModel).toBe(true)
+  })
+
+  it('still falls back for a provider this version does not know', () => {
+    storage.setItem(AI_PREFS_KEY, JSON.stringify({ provider: 'cohere', model: 'command' }))
+    expect(loadAIConfig().provider).toBe('openai')
+  })
+
+  it('never writes the API key into the preferences entry', () => {
+    saveAIConfig({ ...defaultAIConfig(), provider: 'deepseek', rememberKey: false })
+    const stored = storage.getItem(AI_PREFS_KEY) ?? ''
+    expect(Object.keys(JSON.parse(stored)).sort()).toEqual(
+      ['customModel', 'enabled', 'maxBatchQuestions', 'model', 'provider', 'rememberKey'],
+    )
+    expect(storage.getItem(AI_KEY_KEY)).toBeNull()
+  })
+
+  it('keeps the existing versioned key and schema version', () => {
+    saveAIConfig({ ...defaultAIConfig(), provider: 'xai' })
+    expect(storage.getItem(AI_PREFS_KEY)).not.toBeNull()
+    expect(storage.getItem('drillmcq_schema_version')).toBe(String(SCHEMA_VERSION))
+  })
+})
+
 describe('appearance preferences', () => {
   it('returns the shipped look when nothing is stored', () => {
     const prefs = loadAppearance()

@@ -15,6 +15,8 @@ export type AIErrorKind =
   | 'auth'
   | 'rate-limit'
   | 'quota'
+  /** The provider does not recognise the model id. */
+  | 'model'
   | 'bad-request'
   | 'server'
   | 'network'

@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import type { UseAI } from '../hooks/useAI'
 import { isCatalogModel, PROVIDER_LIST, PROVIDERS } from '../services/ai/models'
+import type { BrowserSupport } from '../services/ai/providerRegistry'
 import { AI_KEY_PRIVACY_NOTE } from './aiDisclaimer'
 import { Modal } from './Modal'
 import { Spinner } from './Spinner'
@@ -11,6 +12,26 @@ interface AISettingsProps {
 }
 
 const CUSTOM_MODEL = '__custom__'
+
+const BROWSER_SUPPORT: Record<BrowserSupport, { label: string; hint: string; className: string }> = {
+  works: {
+    label: 'Browser access: confirmed',
+    hint: 'This provider is confirmed to accept requests made directly from a web page.',
+    className: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',
+  },
+  unverified: {
+    label: 'Browser access: unverified',
+    hint:
+      'Not yet confirmed to accept requests made directly from a web page. ' +
+      'Use "Test connection" — if the browser blocks it, try another provider.',
+    className: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  },
+  blocked: {
+    label: 'Browser access: blocked',
+    hint: 'This provider does not accept requests made directly from a web page.',
+    className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+  },
+}
 
 /**
  * Settings for the optional AI assistant, as a modal so it is reachable from
@@ -94,6 +115,23 @@ export function AISettings({ ai, onClose }: AISettingsProps) {
                 </option>
               ))}
             </select>
+            {(meta.browserSupport !== undefined || meta.apiHost !== undefined) && (
+              <p className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                {meta.browserSupport !== undefined && (
+                  <span
+                    title={BROWSER_SUPPORT[meta.browserSupport].hint}
+                    className={`rounded-full px-2 py-0.5 font-medium ${BROWSER_SUPPORT[meta.browserSupport].className}`}
+                  >
+                    {BROWSER_SUPPORT[meta.browserSupport].label}
+                  </span>
+                )}
+                {meta.apiHost !== undefined && (
+                  <span>
+                    Requests go straight to <span className="font-mono">{meta.apiHost}</span>
+                  </span>
+                )}
+              </p>
+            )}
           </div>
 
           {/* Model */}

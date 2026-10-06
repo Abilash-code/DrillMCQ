@@ -51,6 +51,12 @@ export interface HttpJsonInit {
    * text differently, so each supplies its own reader.
    */
   describeError?: (payload: unknown, status: number) => string | null
+  /**
+   * Refines the error kind from the body, for providers that signal e.g. an
+   * exhausted balance or an unknown model through a status `httpErrorKind`
+   * reads as something broader. Returning null keeps the status-based kind.
+   */
+  classifyError?: (payload: unknown, status: number) => AIErrorKind | null
   /** Providers whose CORS setup can fail opaquely map network errors here. */
   networkErrorKind?: AIErrorKind
   networkErrorMessage?: string
@@ -90,7 +96,7 @@ export async function postJson(init: HttpJsonInit): Promise<unknown> {
     if (!response.ok) {
       const detail = init.describeError?.(payload, response.status) ?? null
       throw aiError(
-        httpErrorKind(response.status),
+        init.classifyError?.(payload, response.status) ?? httpErrorKind(response.status),
         detail ?? `The provider rejected the request (HTTP ${response.status}).`,
         response.status,
       )
