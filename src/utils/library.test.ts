@@ -292,6 +292,13 @@ describe('library helpers', () => {
       total: 3,
       percent: 67,
     })
+
+    const withDraft = { ...session, answers: { 1: ['Paris'] }, drafts: { 2: ['4'], 3: [] } }
+    expect(progressSummary(sessionToProgress(withDraft))).toEqual({
+      answered: 2,
+      total: 3,
+      percent: 67,
+    })
   })
 
   it('reports 0% rather than dividing by zero on an empty bank', () => {

@@ -76,6 +76,44 @@ export function toggleOption(selected: string[], option: string): string[] {
 }
 
 /**
+ * Count how many questions have a submitted answer or a non-empty multi-select
+ * draft (which will be committed when the quiz finishes).
+ */
+export function countAnswered(
+  questions: QuizQuestion[],
+  answers: Record<number, string[]>,
+  drafts: Record<number, string[]> = {},
+): number {
+  let count = 0
+  for (const q of questions) {
+    if (answers[q.id] !== undefined || (drafts[q.id]?.length ?? 0) > 0) {
+      count++
+    }
+  }
+  return count
+}
+
+/**
+ * Promote any non-empty multi-select drafts into `answers` without overwriting
+ * already-submitted answers. Called when finishing a quiz so multi-select
+ * questions answered without clicking "Check answer" are scored rather than
+ * marked as skipped.
+ */
+export function commitDrafts(
+  answers: Record<number, string[]>,
+  drafts: Record<number, string[]>,
+): Record<number, string[]> {
+  let next: Record<number, string[]> | null = null
+  for (const [key, draft] of Object.entries(drafts)) {
+    const id = Number(key)
+    if (!Number.isFinite(id) || draft.length === 0 || answers[id] !== undefined) continue
+    next ??= { ...answers }
+    next[id] = draft
+  }
+  return next ?? answers
+}
+
+/**
  * Parse and validate raw JSON text into a quiz.
  * Returns either the questions or a friendly, human-readable error message.
  */

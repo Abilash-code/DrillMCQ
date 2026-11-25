@@ -38,7 +38,7 @@ import {
   progressToSession,
   sortAttemptsByRecency,
 } from './utils/library'
-import { isMultiAnswer, isQuestionLocked, isRevealed } from './utils/quiz'
+import { countAnswered, isMultiAnswer, isQuestionLocked, isRevealed } from './utils/quiz'
 
 /** How many entries the home dashboard's "recent results" strip shows. */
 const RECENT_RESULTS_LIMIT = 5
@@ -534,7 +534,7 @@ function ActiveQuiz({ session, quiz, onExit }: ActiveQuizProps) {
   const { questions, currentIndex, answers, drafts } = session
   const question = questions[currentIndex]
   const isLast = currentIndex === questions.length - 1
-  const answeredCount = Object.keys(answers).length
+  const answeredCount = countAnswered(questions, answers, drafts)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
 

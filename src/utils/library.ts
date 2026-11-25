@@ -9,7 +9,7 @@ import type {
   SavedQuizProgress,
 } from '../types/quiz'
 import { createId, fingerprintQuestions } from '../services/storage'
-import { computeResult, shuffle } from './quiz'
+import { computeResult, countAnswered, shuffle } from './quiz'
 
 /**
  * Pure transforms between the three shapes the library juggles: a question
@@ -169,7 +169,7 @@ export function progressSummary(progress: SavedQuizProgress): {
   percent: number
 } {
   const total = progress.questions.length
-  const answered = Object.keys(progress.answers).length
+  const answered = countAnswered(progress.questions, progress.answers, progress.drafts)
   return { answered, total, percent: total === 0 ? 0 : Math.round((answered / total) * 100) }
 }
 

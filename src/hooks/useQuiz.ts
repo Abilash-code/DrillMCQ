@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { QuizQuestion, QuizSession, QuizSettings } from '../types/quiz'
 import { clearSession, createId, loadSession, saveSession } from '../services/storage'
 import { buildSession } from '../utils/library'
-import { isMultiAnswer, toggleOption } from '../utils/quiz'
+import { commitDrafts, isMultiAnswer, toggleOption } from '../utils/quiz'
 
 interface StartOptions {
   /** Set when the run comes from a saved quiz, so the attempt can be filed. */
@@ -60,10 +60,11 @@ export function useQuiz() {
     setSession((s) => {
       if (!s || s.status !== 'active' || s.answers[questionId] !== undefined) return s
       if (s.revealed.includes(questionId)) return s
-      return {
-        ...s,
-        drafts: { ...s.drafts, [questionId]: toggleOption(s.drafts[questionId] ?? [], option) },
-      }
+      const updated = toggleOption(s.drafts[questionId] ?? [], option)
+      const drafts = { ...s.drafts }
+      if (updated.length === 0) delete drafts[questionId]
+      else drafts[questionId] = updated
+      return { ...s, drafts }
     })
   }, [])
 
@@ -122,7 +123,15 @@ export function useQuiz() {
 
   const finishQuiz = useCallback(() => {
     setSession((s) =>
-      s && s.status === 'active' ? { ...s, status: 'finished', finishedAt: Date.now() } : s,
+      s && s.status === 'active'
+        ? {
+            ...s,
+            answers: commitDrafts(s.answers, s.drafts),
+            drafts: {},
+            status: 'finished',
+            finishedAt: Date.now(),
+          }
+        : s,
     )
   }, [])
 

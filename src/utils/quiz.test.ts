@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { QuizQuestion, QuizSession, QuizSettings } from '../types/quiz'
 import {
+  commitDrafts,
   computeResult,
+  countAnswered,
   isAnswerCorrect,
   isMultiAnswer,
   isQuestionLocked,
@@ -151,6 +153,30 @@ describe('scoring', () => {
     expect(result.correct).toBe(1)
     expect(result.incorrect).toBe(0)
     expect(result.unanswered).toBe(1)
+  })
+})
+
+describe('multi-select draft handling', () => {
+  it('counts both submitted answers and non-empty drafts without double-counting', () => {
+    const questions = [multi, single, { ...single, id: 3 }]
+    expect(countAnswered(questions, { 2: ['Paris'] }, { 1: ['Windows'] })).toBe(2)
+    expect(countAnswered(questions, { 1: ['Windows', 'Linux'] }, { 1: ['Windows'], 3: [] })).toBe(1)
+  })
+
+  it('commits non-empty drafts on finish so multi-select questions are scored instead of skipped', () => {
+    const answers = commitDrafts({ 2: ['Paris'] }, { 1: ['Windows', 'Linux'] })
+    expect(answers).toEqual({ 1: ['Windows', 'Linux'], 2: ['Paris'] })
+
+    const result = computeResult(sessionWith([multi, single], answers))
+    expect(result.correct).toBe(2)
+    expect(result.incorrect).toBe(0)
+    expect(result.unanswered).toBe(0)
+    expect(result.percentage).toBe(100)
+  })
+
+  it('ignores empty drafts and never overwrites an already-submitted answer', () => {
+    const original = { 1: ['Windows'] }
+    expect(commitDrafts(original, { 1: ['Linux'], 2: [] })).toBe(original)
   })
 })
 

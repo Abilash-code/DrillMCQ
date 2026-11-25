@@ -40,9 +40,11 @@ export interface QuizSession {
    */
   answers: Record<number, string[]>
   /**
-   * Options ticked on a multi-select question but not yet submitted with
-   * "Check answer". Kept apart from `answers` so "answered" stays a simple key
-   * check, and so the lock state (answered = locked) needs no extra field.
+   * Options ticked on a multi-select question but not yet revealed with
+   * "Check answer". Kept apart from `answers` so the lock state (answered =
+   * locked on multi-select) stays unambiguous mid-quiz, and promoted into
+   * `answers` when the quiz finishes so un-checked multi-select questions are
+   * scored instead of marked as skipped.
    */
   drafts: Record<number, string[]>
   /**
@@ -129,7 +131,7 @@ export interface QuizAttempt {
   settings: QuizSettings
   /** Questions in the order they were played, so review is reproducible. */
   questions: QuizQuestion[]
-  /** Map of question id -> selected options. Unsubmitted drafts are dropped. */
+  /** Map of question id -> selected options (multi-select drafts are committed on finish). */
   answers: Record<number, string[]>
 }
 
