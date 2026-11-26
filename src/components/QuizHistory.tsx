@@ -12,6 +12,7 @@ interface QuizHistoryProps {
   /** Names where "back" goes — the library or the results list. */
   backLabel?: string
   onRetake: () => void
+  onEdit?: () => void
   onReview: (attempt: QuizAttempt) => void
   onDeleteAttempt: (attempt: QuizAttempt) => void
 }
@@ -34,6 +35,7 @@ export function QuizHistory({
   onBack,
   backLabel = 'Quiz Library',
   onRetake,
+  onEdit,
   onReview,
   onDeleteAttempt,
 }: QuizHistoryProps) {
@@ -61,13 +63,24 @@ export function QuizHistory({
           <h2 className="mt-1 text-xl font-bold tracking-tight">{quiz.name}</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Results</p>
         </div>
-        <button
-          type="button"
-          onClick={onRetake}
-          className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
-        >
-          Start again
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {onEdit !== undefined && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+            >
+              Edit JSON / input
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onRetake}
+            className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+          >
+            Start again
+          </button>
+        </div>
       </div>
 
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">

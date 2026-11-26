@@ -11,6 +11,12 @@ interface JsonUploaderProps {
   onLoad: (questions: QuizQuestion[]) => void
   /** Present only when the AI assistant is configured. */
   ai?: UseAI
+  /** Pre-populated JSON text (used when editing an existing saved quiz). */
+  initialText?: string
+  /** Label for the primary action button. */
+  submitLabel?: string
+  /** Hide the "Try the sample quiz" shortcut (e.g. when editing a saved quiz). */
+  hideSample?: boolean
 }
 
 const SCHEMA_EXAMPLE = `[
@@ -37,8 +43,14 @@ const SCHEMA_EXAMPLE = `[
  * Quiz import: paste JSON into the textarea.
  * Validates the payload and surfaces a friendly error when it's malformed.
  */
-export function JsonUploader({ onLoad, ai }: JsonUploaderProps) {
-  const [text, setText] = useState('')
+export function JsonUploader({
+  onLoad,
+  ai,
+  initialText = '',
+  submitLabel = 'Load quiz',
+  hideSample = false,
+}: JsonUploaderProps) {
+  const [text, setText] = useState(initialText)
   const [error, setError] = useState<string | null>(null)
 
   // Parsing and building the quiz is synchronous but not instant on a big
@@ -217,15 +229,17 @@ export function JsonUploader({ onLoad, ai }: JsonUploaderProps) {
           className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading && <Spinner label={null} />}
-          {loading ? 'Loading quiz…' : 'Load quiz'}
+          {loading ? 'Loading quiz…' : submitLabel}
         </button>
-        <button
-          type="button"
-          onClick={loadSample}
-          className="px-2 py-2.5 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-        >
-          Try the sample quiz
-        </button>
+        {!hideSample && (
+          <button
+            type="button"
+            onClick={loadSample}
+            className="px-2 py-2.5 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+          >
+            Try the sample quiz
+          </button>
+        )}
       </div>
     </div>
   )

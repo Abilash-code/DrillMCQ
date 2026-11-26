@@ -9,6 +9,8 @@ interface SaveQuizPanelProps {
   savedName: string | null
   onSave: (name: string) => void
   onUpdate: (quizId: string) => void
+  /** Offered once saved, to edit the saved quiz's JSON or plain-text questions. */
+  onEdit?: () => void
   /** False when localStorage is unavailable — saving wouldn't survive. */
   storageAvailable: boolean
 }
@@ -24,6 +26,7 @@ export function SaveQuizPanel({
   savedName,
   onSave,
   onUpdate,
+  onEdit,
   storageAvailable,
 }: SaveQuizPanelProps) {
   const inputId = useId()
@@ -43,9 +46,20 @@ export function SaveQuizPanel({
     return (
       <div
         role="status"
-        className="animate-fade-slide-in rounded-2xl border border-green-300 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/50 dark:text-green-400"
+        className="animate-fade-slide-in flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-300 bg-green-50 p-4 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/50 dark:text-green-400"
       >
-        <strong>{savedName}</strong> is saved in your Quiz Library. Configure and start it below.
+        <p>
+          <strong>{savedName}</strong> is saved in your Quiz Library. Configure and start it below.
+        </p>
+        {onEdit !== undefined && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="min-h-10 shrink-0 rounded-xl border border-green-400 bg-white px-3.5 py-2 text-xs font-semibold text-green-800 shadow-sm transition-colors hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 dark:border-green-800 dark:bg-slate-900 dark:text-green-300 dark:hover:bg-green-950"
+          >
+            Edit JSON / input
+          </button>
+        )}
       </div>
     )
   }

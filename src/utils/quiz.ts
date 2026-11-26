@@ -324,3 +324,47 @@ export function formatTime(totalSeconds: number): string {
   const ss = String(seconds).padStart(2, '0')
   return hours > 0 ? `${hours}:${mm}:${ss}` : `${minutes}:${ss}`
 }
+
+const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+
+/**
+ * Serialize questions into DrillMCQ's plain-text MCQ format so a saved quiz
+ * can be edited in the plain-text editor as well as JSON.
+ */
+export function questionsToMcqText(questions: QuizQuestion[]): string {
+  return questions
+    .map((q, index) => {
+      const cleanQuestion = q.question.replace(/\s*\n+\s*/g, ' ').trim()
+      const lines: string[] = [`${index + 1}. ${cleanQuestion}`, '']
+      const useLetters = q.options.length <= OPTION_LETTERS.length
+
+      if (useLetters) {
+        const answerLetters: string[] = []
+        q.options.forEach((option, optIndex) => {
+          const cleanOption = option.replace(/\s*\n+\s*/g, ' ').trim()
+          const letter = OPTION_LETTERS[optIndex]
+          lines.push(`${letter}. ${cleanOption}`)
+          if (q.correctAnswers.includes(option)) answerLetters.push(letter)
+        })
+        lines.push('')
+        lines.push(
+          `Answer: ${answerLetters.length > 0 ? answerLetters.join(', ') : q.correctAnswers.join(', ')}`,
+        )
+      } else {
+        for (const option of q.options) {
+          const cleanOption = option.replace(/\s*\n+\s*/g, ' ').trim()
+          const prefix = q.correctAnswers.includes(option) ? '✓' : '-'
+          lines.push(`${prefix} ${cleanOption}`)
+        }
+      }
+
+      if (q.explanation) {
+        lines.push(`Explanation: ${q.explanation.replace(/\s*\n+\s*/g, ' ').trim()}`)
+      }
+      if (q.category) {
+        lines.push(`Category: ${q.category.replace(/\s*\n+\s*/g, ' ').trim()}`)
+      }
+      return lines.join('\n')
+    })
+    .join('\n\n')
+}

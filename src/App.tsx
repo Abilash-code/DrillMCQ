@@ -14,6 +14,7 @@ import { QuizTopBar } from './components/QuizTopBar'
 import { RecentResults } from './components/RecentResults'
 import { ResultScreen, type ResultScreenExtras } from './components/ResultScreen'
 import { SavedQuizList } from './components/SavedQuizList'
+import { SavedQuizEditor } from './components/SavedQuizEditor'
 import { SaveQuizPanel } from './components/SaveQuizPanel'
 import { SettingsDialog } from './components/SettingsDialog'
 import { StepIndicator } from './components/StepIndicator'
@@ -73,8 +74,9 @@ export default function App() {
   // Set when the pending questions belong to a saved quiz, so the resulting
   // attempt is filed against it.
   const [pendingQuiz, setPendingQuiz] = useState<SavedQuiz | null>(null)
-  // Which saved quiz's history is open, and which attempt is being reviewed.
+  // Which saved quiz's history or editor is open, and which attempt is being reviewed.
   const [historyQuizId, setHistoryQuizId] = useState<string | null>(null)
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null)
   const [reviewAttempt, setReviewAttempt] = useState<QuizAttempt | null>(null)
   const [storageAvailable] = useState(isStorageAvailable)
   // Checks for the constructor only — asking never creates an AudioContext.
@@ -110,6 +112,7 @@ export default function App() {
   const screenKey = [
     view,
     pendingQuestions === null ? 'import' : 'setup',
+    editingQuizId ?? '',
     historyQuizId ?? '',
     reviewAttempt?.id ?? '',
     session?.status ?? 'none',
@@ -135,6 +138,7 @@ export default function App() {
   const navigate = useCallback(
     (next: View) => {
       setView(next)
+      setEditingQuizId(null)
       setHistoryQuizId(null)
       setReviewAttempt(null)
       if (session?.status === 'finished') resetQuiz()
@@ -146,6 +150,7 @@ export default function App() {
   const openSetup = useCallback((questions: QuizQuestion[], saved: SavedQuiz | null) => {
     setPendingQuestions(questions)
     setPendingQuiz(saved)
+    setEditingQuizId(null)
     setHistoryQuizId(null)
     setReviewAttempt(null)
     setView('create')
@@ -154,6 +159,7 @@ export default function App() {
   const handleResume = useCallback(
     (saved: SavedQuiz) => {
       if (!saved.progress) return
+      setEditingQuizId(null)
       setHistoryQuizId(null)
       setReviewAttempt(null)
       quiz.resumeSession(progressToSession(saved, saved.progress))
@@ -178,17 +184,41 @@ export default function App() {
     [library, pendingQuiz],
   )
 
+  const handleUpdateQuestions = useCallback(
+    (quizId: string, nextQuestions: QuizQuestion[]): SavedQuiz | null => {
+      const updated = library.updateQuiz(quizId, nextQuestions)
+      if (updated && pendingQuiz?.id === quizId) {
+        setPendingQuiz(updated)
+        setPendingQuestions(updated.questions)
+        ai.clearVerifications()
+      }
+      return updated
+    },
+    [library, pendingQuiz, ai],
+  )
+
   const handleDeleteQuiz = useCallback(
     (saved: SavedQuiz) => {
       library.removeQuiz(saved.id)
       // Storage drops the quiz's attempts with it — resync the history state.
       refreshHistory()
+      if (editingQuizId === saved.id) setEditingQuizId(null)
       if (historyQuizId === saved.id) setHistoryQuizId(null)
       if (reviewAttempt?.quizId === saved.id) setReviewAttempt(null)
       if (session?.quizId === saved.id) resetQuiz()
       if (pendingQuiz?.id === saved.id) clearSetup()
     },
-    [library, refreshHistory, historyQuizId, reviewAttempt, session, resetQuiz, pendingQuiz, clearSetup],
+    [
+      library,
+      refreshHistory,
+      editingQuizId,
+      historyQuizId,
+      reviewAttempt,
+      session,
+      resetQuiz,
+      pendingQuiz,
+      clearSetup,
+    ],
   )
 
   const handleDeleteAttempt = useCallback(
@@ -228,12 +258,21 @@ export default function App() {
   }, [session, saveProgress, resetQuiz])
 
   const historyQuiz = historyQuizId ? library.quizzes.find((q) => q.id === historyQuizId) ?? null : null
+  const editingQuiz = editingQuizId ? library.quizzes.find((q) => q.id === editingQuizId) ?? null : null
   const activeSession =
-    reviewAttempt === null && historyQuiz === null && session !== null && session.status === 'active'
+    reviewAttempt === null &&
+    editingQuiz === null &&
+    historyQuiz === null &&
+    session !== null &&
+    session.status === 'active'
       ? session
       : null
   const finishedSession =
-    reviewAttempt === null && historyQuiz === null && session !== null && session.status === 'finished'
+    reviewAttempt === null &&
+    editingQuiz === null &&
+    historyQuiz === null &&
+    session !== null &&
+    session.status === 'finished'
       ? session
       : null
 
@@ -264,7 +303,12 @@ export default function App() {
 
   // The library and results screens use their width; reading screens stay
   // narrow so long questions don't run across the whole monitor.
-  const wide = reviewAttempt === null && historyQuiz === null && finishedSession === null && view !== 'create'
+  const wide =
+    reviewAttempt === null &&
+    editingQuiz === null &&
+    historyQuiz === null &&
+    finishedSession === null &&
+    view !== 'create'
 
   const dialogs = (
     <>
@@ -342,20 +386,42 @@ export default function App() {
           />
         )}
 
-        {/* 2. A saved quiz's results history. */}
-        {reviewAttempt === null && historyQuiz !== null && (
+        {/* 2. Editing a saved quiz's JSON or plain-text questions. */}
+        {reviewAttempt === null && editingQuiz !== null && (
+          <SavedQuizEditor
+            quiz={editingQuiz}
+            backLabel={
+              historyQuiz !== null
+                ? 'results'
+                : view === 'create' && pendingQuiz?.id === editingQuiz.id
+                  ? 'quiz setup'
+                  : 'Quiz Library'
+            }
+            ai={ai}
+            onSave={(nextQuestions) => {
+              playSound('save')
+              handleUpdateQuestions(editingQuiz.id, nextQuestions)
+              setEditingQuizId(null)
+            }}
+            onCancel={() => setEditingQuizId(null)}
+          />
+        )}
+
+        {/* 3. A saved quiz's results history. */}
+        {reviewAttempt === null && editingQuiz === null && historyQuiz !== null && (
           <QuizHistory
             quiz={historyQuiz}
             attempts={history.forQuiz(historyQuiz.id)}
             onBack={() => setHistoryQuizId(null)}
             backLabel={view === 'results' ? 'Results' : 'Quiz Library'}
             onRetake={() => openSetup(historyQuiz.questions, historyQuiz)}
+            onEdit={() => setEditingQuizId(historyQuiz.id)}
             onReview={setReviewAttempt}
             onDeleteAttempt={handleDeleteAttempt}
           />
         )}
 
-        {/* 3. The result of the run just submitted. */}
+        {/* 4. The result of the run just submitted. */}
         {finishedSession !== null && (
           <FinishedQuiz
             session={finishedSession}
@@ -368,8 +434,12 @@ export default function App() {
           />
         )}
 
-        {/* 4. Create Quiz — paste, then review and configure. */}
-        {reviewAttempt === null && historyQuiz === null && finishedSession === null && view === 'create' && (
+        {/* 5. Create Quiz — paste, then review and configure. */}
+        {reviewAttempt === null &&
+          editingQuiz === null &&
+          historyQuiz === null &&
+          finishedSession === null &&
+          view === 'create' && (
           <div className="space-y-5">
             <div className="space-y-3">
               <h1 className="text-2xl font-bold tracking-tight">Create Quiz</h1>
@@ -394,11 +464,15 @@ export default function App() {
                     setPendingQuiz(library.saveQuiz(name, pendingQuestions))
                   }}
                   onUpdate={(quizId) => setPendingQuiz(library.updateQuiz(quizId, pendingQuestions))}
+                  onEdit={pendingQuiz ? () => setEditingQuizId(pendingQuiz.id) : undefined}
                 />
                 <AIVerificationPanel
                   questions={pendingQuestions}
                   ai={ai}
-                  onApply={setPendingQuestions}
+                  onApply={(next) => {
+                    if (pendingQuiz !== null) handleUpdateQuestions(pendingQuiz.id, next)
+                    else setPendingQuestions(next)
+                  }}
                 />
                 <QuizSetup
                   questions={pendingQuestions}
@@ -416,14 +490,19 @@ export default function App() {
           </div>
         )}
 
-        {/* 5. Quiz Library. */}
-        {reviewAttempt === null && historyQuiz === null && finishedSession === null && view === 'library' && (
+        {/* 6. Quiz Library. */}
+        {reviewAttempt === null &&
+          editingQuiz === null &&
+          historyQuiz === null &&
+          finishedSession === null &&
+          view === 'library' && (
           <SavedQuizList
             quizzes={library.quizzes}
             statsFor={history.statsFor}
             onStart={(saved) => openSetup(saved.questions, saved)}
             onResume={handleResume}
             onStartOver={handleStartOver}
+            onEdit={(saved) => setEditingQuizId(saved.id)}
             onViewResults={(saved) => setHistoryQuizId(saved.id)}
             onRename={handleRename}
             onDelete={handleDeleteQuiz}
@@ -431,8 +510,12 @@ export default function App() {
           />
         )}
 
-        {/* 6. Results — every attempt, across every quiz. */}
-        {reviewAttempt === null && historyQuiz === null && finishedSession === null && view === 'results' && (
+        {/* 7. Results — every attempt, across every quiz. */}
+        {reviewAttempt === null &&
+          editingQuiz === null &&
+          historyQuiz === null &&
+          finishedSession === null &&
+          view === 'results' && (
           <RecentResults
             attempts={allAttempts}
             heading="Results"
@@ -462,8 +545,12 @@ export default function App() {
           />
         )}
 
-        {/* 7. Home. */}
-        {reviewAttempt === null && historyQuiz === null && finishedSession === null && view === 'home' && (
+        {/* 8. Home. */}
+        {reviewAttempt === null &&
+          editingQuiz === null &&
+          historyQuiz === null &&
+          finishedSession === null &&
+          view === 'home' && (
           <HomeDashboard
             onNavigate={navigate}
             resumable={resumable}

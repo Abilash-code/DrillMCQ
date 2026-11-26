@@ -12,6 +12,7 @@ interface SavedQuizCardProps {
   onPrimary: () => void
   /** Restart from question 1, discarding an unfinished run. */
   onStartOver: () => void
+  onEdit: () => void
   onViewResults: () => void
   onRename: () => void
   onDelete: () => void
@@ -48,6 +49,7 @@ export function SavedQuizCard({
   stats,
   onPrimary,
   onStartOver,
+  onEdit,
   onViewResults,
   onRename,
   onDelete,
@@ -60,6 +62,7 @@ export function SavedQuizCard({
     // Only meaningful while a run is unfinished — otherwise the primary
     // button already starts from the beginning.
     ...(status === 'in-progress' ? [{ label: 'Start again', onSelect: onStartOver }] : []),
+    { label: 'Edit JSON / input', onSelect: onEdit },
     {
       label: 'View results',
       onSelect: onViewResults,

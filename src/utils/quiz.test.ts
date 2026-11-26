@@ -14,8 +14,10 @@ import {
   parseQuizJson,
   pauseSession,
   questionsNeededToPass,
+  questionsToMcqText,
   toggleOption,
 } from './quiz'
+import { parseMcqText } from './parseMcqText'
 
 const settings: QuizSettings = {
   shuffleQuestions: false,
@@ -319,5 +321,42 @@ describe('JSON import', () => {
     const result = parseQuizJson(`[{ "id": 1, "question": "Languages?", "options": ${options} }]`)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toContain('correctAnswers')
+  })
+})
+
+describe('plain-text serialization', () => {
+  it('round-trips single, multi-select, explanation, and category through parseMcqText', () => {
+    const bank: QuizQuestion[] = [
+      {
+        ...multi,
+        id: 1,
+        explanation: 'Windows and Linux are OSes.',
+        category: 'Systems',
+      },
+      {
+        ...single,
+        id: 2,
+        category: 'Geography',
+      },
+    ]
+
+    const text = questionsToMcqText(bank)
+    const reparsed = parseMcqText(text)
+    expect(reparsed.skipped).toBe(0)
+    expect(reparsed.questions).toEqual(bank)
+  })
+
+  it('uses checked bullet lines when a question has more than 8 options', () => {
+    const manyOptions = Array.from({ length: 10 }, (_, i) => `Option ${i + 1}`)
+    const q: QuizQuestion = {
+      id: 1,
+      question: 'Pick two',
+      options: manyOptions,
+      correctAnswers: ['Option 2', 'Option 9'],
+    }
+    const text = questionsToMcqText([q])
+    const reparsed = parseMcqText(text)
+    expect(reparsed.skipped).toBe(0)
+    expect(reparsed.questions).toEqual([q])
   })
 })

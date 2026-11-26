@@ -12,6 +12,10 @@ interface TextUploaderProps {
   onLoad: (questions: QuizQuestion[]) => void
   /** Present only when the AI assistant is configured. */
   ai?: UseAI
+  /** Pre-populated plain-text MCQs (used when editing a saved quiz). */
+  initialText?: string
+  /** Label for the primary action button. */
+  submitLabel?: string
 }
 
 /** Cap the preview list so pasting a huge bank doesn't bloat the DOM. */
@@ -51,8 +55,13 @@ Which AWS service records configuration changes over time?
  * then generate the quiz. Parsing runs on every keystroke but on deferred
  * input, so typing stays responsive even with large question banks.
  */
-export function TextUploader({ onLoad, ai }: TextUploaderProps) {
-  const [text, setText] = useState('')
+export function TextUploader({
+  onLoad,
+  ai,
+  initialText = '',
+  submitLabel = 'Generate quiz',
+}: TextUploaderProps) {
+  const [text, setText] = useState(initialText)
 
   // Building the quiz is synchronous but not instant on a big bank, so the
   // click yields a frame to the browser first and shows a spinner.
@@ -336,7 +345,7 @@ export function TextUploader({ onLoad, ai }: TextUploaderProps) {
         {generating && <Spinner label={null} />}
         {generating
           ? 'Generating quiz…'
-          : `Generate quiz${parsed.questions.length > 0 ? ` (${parsed.questions.length})` : ''}`}
+          : `${submitLabel}${parsed.questions.length > 0 ? ` (${parsed.questions.length})` : ''}`}
       </button>
     </div>
   )

@@ -8,13 +8,35 @@ interface QuizImporterProps {
   onLoad: (questions: QuizQuestion[]) => void
   /** Forwarded to both tabs: each has its own AI clean-up for its own format. */
   ai?: UseAI
+  /** Which tab starts active. Defaults to 'text'. */
+  initialMode?: ImportMode
+  /** Pre-populated text for the plain-text tab. */
+  initialText?: string
+  /** Pre-populated JSON for the JSON tab. */
+  initialJson?: string
+  /** Override the submit button label on both tabs. */
+  submitLabel?: string
+  /** Hide the sample-quiz shortcut on the JSON tab. */
+  hideSample?: boolean
+  heading?: string
+  subheading?: string
 }
 
-type ImportMode = 'text' | 'json'
+export type ImportMode = 'text' | 'json'
 
 /** Tabbed quiz import: plain-text MCQ parsing or raw JSON. */
-export function QuizImporter({ onLoad, ai }: QuizImporterProps) {
-  const [mode, setMode] = useState<ImportMode>('text')
+export function QuizImporter({
+  onLoad,
+  ai,
+  initialMode = 'text',
+  initialText,
+  initialJson,
+  submitLabel,
+  hideSample,
+  heading = 'Paste your MCQ questions below',
+  subheading = 'Nothing is uploaded — parsing happens in this browser.',
+}: QuizImporterProps) {
+  const [mode, setMode] = useState<ImportMode>(initialMode)
 
   const tabClass = (active: boolean) =>
     `min-h-11 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
@@ -26,12 +48,8 @@ export function QuizImporter({ onLoad, ai }: QuizImporterProps) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-          Paste your MCQ questions below
-        </p>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Nothing is uploaded — parsing happens in this browser.
-        </p>
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{heading}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{subheading}</p>
       </div>
 
       <div
@@ -60,9 +78,15 @@ export function QuizImporter({ onLoad, ai }: QuizImporterProps) {
       </div>
 
       {mode === 'text' ? (
-        <TextUploader onLoad={onLoad} ai={ai} />
+        <TextUploader onLoad={onLoad} ai={ai} initialText={initialText} submitLabel={submitLabel} />
       ) : (
-        <JsonUploader onLoad={onLoad} ai={ai} />
+        <JsonUploader
+          onLoad={onLoad}
+          ai={ai}
+          initialText={initialJson}
+          submitLabel={submitLabel}
+          hideSample={hideSample}
+        />
       )}
     </div>
   )
