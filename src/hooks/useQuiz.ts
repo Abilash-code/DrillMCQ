@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { QuizQuestion, QuizSession, QuizSettings } from '../types/quiz'
 import { clearSession, createId, loadSession, saveSession } from '../services/storage'
 import { buildSession } from '../utils/library'
-import { commitDrafts, isMultiAnswer, toggleOption } from '../utils/quiz'
+import { commitDrafts, getElapsedMs, isMultiAnswer, toggleOption } from '../utils/quiz'
 
 interface StartOptions {
   /** Set when the run comes from a saved quiz, so the attempt can be filed. */
@@ -122,17 +122,20 @@ export function useQuiz() {
   }, [])
 
   const finishQuiz = useCallback(() => {
-    setSession((s) =>
-      s && s.status === 'active'
-        ? {
-            ...s,
-            answers: commitDrafts(s.answers, s.drafts),
-            drafts: {},
-            status: 'finished',
-            finishedAt: Date.now(),
-          }
-        : s,
-    )
+    setSession((s) => {
+      if (!s || s.status !== 'active') return s
+      const now = Date.now()
+      return {
+        ...s,
+        answers: commitDrafts(s.answers, s.drafts),
+        drafts: {},
+        elapsedMs: getElapsedMs(s, now),
+        resumedAt: now,
+        pausedAt: undefined,
+        status: 'finished',
+        finishedAt: now,
+      }
+    })
   }, [])
 
   /**
@@ -150,6 +153,9 @@ export function useQuiz() {
             currentIndex: 0,
             status: 'active',
             startedAt: Date.now(),
+            elapsedMs: undefined,
+            resumedAt: undefined,
+            pausedAt: undefined,
             finishedAt: undefined,
             attemptId: createId('attempt'),
           }

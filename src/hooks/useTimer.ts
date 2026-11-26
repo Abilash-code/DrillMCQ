@@ -12,11 +12,14 @@ export function useTimer(
   timerMinutes: number,
   active: boolean,
   onExpire: () => void,
+  elapsedMs = 0,
 ): number | null {
   const totalSeconds = timerMinutes * 60
 
-  const compute = () =>
-    Math.max(0, totalSeconds - Math.floor((Date.now() - startedAt) / 1000))
+  const compute = () => {
+    const totalElapsedMs = elapsedMs + Math.max(0, Date.now() - startedAt)
+    return Math.max(0, totalSeconds - Math.floor(totalElapsedMs / 1000))
+  }
 
   const [remaining, setRemaining] = useState<number>(compute)
 
@@ -26,7 +29,7 @@ export function useTimer(
     const id = setInterval(() => setRemaining(compute()), 1000)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startedAt, timerMinutes, active])
+  }, [startedAt, timerMinutes, active, elapsedMs])
 
   useEffect(() => {
     if (active && timerMinutes > 0 && remaining === 0) onExpire()

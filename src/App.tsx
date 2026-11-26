@@ -38,7 +38,7 @@ import {
   progressToSession,
   sortAttemptsByRecency,
 } from './utils/library'
-import { countAnswered, isMultiAnswer, isQuestionLocked, isRevealed } from './utils/quiz'
+import { countAnswered, isMultiAnswer, isQuestionLocked, isRevealed, pauseSession } from './utils/quiz'
 
 /** How many entries the home dashboard's "recent results" strip shows. */
 const RECENT_RESULTS_LIMIT = 5
@@ -220,9 +220,12 @@ export default function App() {
    */
   const handleExitQuiz = useCallback(() => {
     const wasSaved = session?.quizId !== undefined
+    if (session && session.status === 'active' && session.quizId) {
+      saveProgress(pauseSession(session))
+    }
     resetQuiz()
     setView(wasSaved ? 'library' : 'home')
-  }, [session, resetQuiz])
+  }, [session, saveProgress, resetQuiz])
 
   const historyQuiz = historyQuizId ? library.quizzes.find((q) => q.id === historyQuizId) ?? null : null
   const activeSession =
@@ -547,7 +550,13 @@ function ActiveQuiz({ session, quiz, onExit }: ActiveQuizProps) {
     ? (answers[question.id] ?? drafts[question.id] ?? []).length > 0
     : answers[question.id] !== undefined
 
-  const remaining = useTimer(session.startedAt, session.timerMinutes, true, quiz.finishQuiz)
+  const remaining = useTimer(
+    session.resumedAt ?? session.startedAt,
+    session.timerMinutes,
+    session.pausedAt === undefined,
+    quiz.finishQuiz,
+    session.elapsedMs ?? 0,
+  )
 
   /*
    * Picking and paging each have two entry points — the buttons below and the
@@ -705,8 +714,10 @@ function ActiveQuiz({ session, quiz, onExit }: ActiveQuizProps) {
           message={
             session.quizId !== undefined ? (
               <p>
-                Your progress is saved. You can pick this quiz back up from your Quiz Library or
-                from Home.
+                {session.timerMinutes > 0
+                  ? 'Your progress is saved and the timer will pause. '
+                  : 'Your progress is saved. '}
+                You can pick this quiz back up from your Quiz Library or from Home.
               </p>
             ) : (
               <p>

@@ -135,6 +135,28 @@ describe('resuming an unfinished quiz', () => {
     expect(resumed.status).toBe('active')
     expect(resumed.quizId).toBe(quiz.id)
   })
+
+  it('resumes a paused timer from the frozen elapsed time without counting time spent exited', () => {
+    const quiz = createSavedQuiz('Geography', questions)
+    const started = {
+      ...buildSession(questions, { ...settings, timerMinutes: 5 }, { quizId: quiz.id, quizName: quiz.name }),
+      startedAt: 100_000,
+    }
+    // User spends 40s, exits via the back button, and returns 10 minutes later.
+    const paused = { ...started, elapsedMs: 40_000, pausedAt: 140_000 }
+    upsertSavedQuiz({ ...quiz, progress: sessionToProgress(paused) })
+
+    const stored = loadSavedQuizzes()[0]
+    const resumed = progressToSession(stored, stored.progress!, 740_000)
+    expect(resumed.pausedAt).toBeUndefined()
+    expect(resumed.elapsedMs).toBe(40_000)
+    expect(resumed.resumedAt).toBe(740_000)
+
+    // Finishes 20s after resuming -> total active time is 60s, not 660s.
+    const finished = { ...resumed, status: 'finished' as const, elapsedMs: 60_000, resumedAt: 760_000 }
+    const attempt = sessionToAttempt(finished, 760_000)
+    expect(attempt.timeTakenSeconds).toBe(60)
+  })
 })
 
 describe('completing an attempt', () => {

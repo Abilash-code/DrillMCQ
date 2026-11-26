@@ -281,6 +281,39 @@ export function computeResult(session: QuizSession): QuizResult {
   }
 }
 
+/**
+ * Active milliseconds spent in a session up to `now`.
+ *
+ * When paused (`pausedAt !== undefined`), returns only the frozen `elapsedMs`
+ * accumulated before the pause. When finished with a frozen `elapsedMs`, returns
+ * that value directly so pauses are excluded from attempt duration.
+ */
+export function getElapsedMs(
+  timing: Pick<QuizSession, 'startedAt' | 'elapsedMs' | 'resumedAt' | 'pausedAt'> & {
+    status?: QuizSession['status']
+  },
+  now = Date.now(),
+): number {
+  const prior = timing.elapsedMs ?? 0
+  if (timing.pausedAt !== undefined) return prior
+  if (timing.status === 'finished' && timing.elapsedMs !== undefined) return prior
+  const segmentStart = timing.resumedAt ?? timing.startedAt
+  return prior + Math.max(0, now - segmentStart)
+}
+
+/**
+ * Freeze active elapsed time when exiting an active quiz so the timer does
+ * not keep counting down while the quiz is paused in the library.
+ */
+export function pauseSession(session: QuizSession, now = Date.now()): QuizSession {
+  if (session.status !== 'active' || session.pausedAt !== undefined) return session
+  return {
+    ...session,
+    elapsedMs: getElapsedMs(session, now),
+    pausedAt: now,
+  }
+}
+
 /** Format seconds as m:ss (or h:mm:ss above one hour). */
 export function formatTime(totalSeconds: number): string {
   const s = Math.max(0, totalSeconds)

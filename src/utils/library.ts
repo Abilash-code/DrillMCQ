@@ -9,7 +9,7 @@ import type {
   SavedQuizProgress,
 } from '../types/quiz'
 import { createId, fingerprintQuestions } from '../services/storage'
-import { computeResult, countAnswered, shuffle } from './quiz'
+import { computeResult, countAnswered, getElapsedMs, shuffle } from './quiz'
 
 /**
  * Pure transforms between the three shapes the library juggles: a question
@@ -66,6 +66,9 @@ export function sessionToProgress(session: QuizSession): SavedQuizProgress {
     revealed: session.revealed,
     currentIndex: session.currentIndex,
     startedAt: session.startedAt,
+    elapsedMs: session.elapsedMs,
+    resumedAt: session.resumedAt,
+    pausedAt: session.pausedAt,
     timerMinutes: session.timerMinutes,
     settings: session.settings,
     updatedAt: Date.now(),
@@ -73,7 +76,12 @@ export function sessionToProgress(session: QuizSession): SavedQuizProgress {
 }
 
 /** Rehydrate a resumable session from a saved quiz's progress snapshot. */
-export function progressToSession(quiz: SavedQuiz, progress: SavedQuizProgress): QuizSession {
+export function progressToSession(
+  quiz: SavedQuiz,
+  progress: SavedQuizProgress,
+  now = Date.now(),
+): QuizSession {
+  const wasPaused = progress.pausedAt !== undefined
   return {
     questions: progress.questions,
     answers: progress.answers,
@@ -84,6 +92,9 @@ export function progressToSession(quiz: SavedQuiz, progress: SavedQuizProgress):
     currentIndex: progress.currentIndex,
     status: 'active',
     startedAt: progress.startedAt,
+    elapsedMs: progress.elapsedMs,
+    resumedAt: wasPaused ? now : progress.resumedAt,
+    pausedAt: undefined,
     timerMinutes: progress.timerMinutes,
     attemptId: progress.attemptId,
     settings: progress.settings,
@@ -101,7 +112,7 @@ export function sessionToAttempt(session: QuizSession, completedAt = Date.now())
     quizName: session.quizName ?? 'Unsaved quiz',
     startedAt: session.startedAt,
     completedAt,
-    timeTakenSeconds: Math.max(0, Math.round((completedAt - session.startedAt) / 1000)),
+    timeTakenSeconds: Math.max(0, Math.round(getElapsedMs(session, completedAt) / 1000)),
     correct: result.correct,
     incorrect: result.incorrect,
     unanswered: result.unanswered,

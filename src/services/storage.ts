@@ -241,6 +241,18 @@ function normalizeSession(value: unknown): QuizSession | null {
         : 0,
     status: value.status === 'finished' ? 'finished' : 'active',
     startedAt: typeof value.startedAt === 'number' ? value.startedAt : Date.now(),
+    elapsedMs:
+      typeof value.elapsedMs === 'number' && Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0
+        ? value.elapsedMs
+        : undefined,
+    resumedAt:
+      typeof value.resumedAt === 'number' && Number.isFinite(value.resumedAt)
+        ? value.resumedAt
+        : undefined,
+    pausedAt:
+      typeof value.pausedAt === 'number' && Number.isFinite(value.pausedAt)
+        ? value.pausedAt
+        : undefined,
     timerMinutes,
     attemptId: typeof value.attemptId === 'string' ? value.attemptId : createId('attempt'),
     // Legacy sessions predate `settings`; the timer is the one field we can
@@ -267,6 +279,18 @@ function normalizeProgress(value: unknown): SavedQuizProgress | null {
         ? Math.min(value.currentIndex, questions.length - 1)
         : 0,
     startedAt: typeof value.startedAt === 'number' ? value.startedAt : Date.now(),
+    elapsedMs:
+      typeof value.elapsedMs === 'number' && Number.isFinite(value.elapsedMs) && value.elapsedMs >= 0
+        ? value.elapsedMs
+        : undefined,
+    resumedAt:
+      typeof value.resumedAt === 'number' && Number.isFinite(value.resumedAt)
+        ? value.resumedAt
+        : undefined,
+    pausedAt:
+      typeof value.pausedAt === 'number' && Number.isFinite(value.pausedAt)
+        ? value.pausedAt
+        : undefined,
     timerMinutes: typeof value.timerMinutes === 'number' && value.timerMinutes > 0 ? value.timerMinutes : 0,
     settings: normalizeSettings(value.settings),
     updatedAt: typeof value.updatedAt === 'number' ? value.updatedAt : Date.now(),

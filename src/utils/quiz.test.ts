@@ -4,6 +4,7 @@ import {
   commitDrafts,
   computeResult,
   countAnswered,
+  getElapsedMs,
   isAnswerCorrect,
   isMultiAnswer,
   isQuestionLocked,
@@ -11,6 +12,7 @@ import {
   normalizePassPercentage,
   normalizeQuestion,
   parseQuizJson,
+  pauseSession,
   questionsNeededToPass,
   toggleOption,
 } from './quiz'
@@ -177,6 +179,26 @@ describe('multi-select draft handling', () => {
   it('ignores empty drafts and never overwrites an already-submitted answer', () => {
     const original = { 1: ['Windows'] }
     expect(commitDrafts(original, { 1: ['Linux'], 2: [] })).toBe(original)
+  })
+})
+
+describe('timer pause and elapsed time', () => {
+  it('freezes elapsed time when paused and accumulates across resumes', () => {
+    const active: QuizSession = {
+      ...sessionWith([single], {}),
+      status: 'active',
+      startedAt: 10_000,
+    }
+    expect(getElapsedMs(active, 25_000)).toBe(15_000)
+
+    const paused = pauseSession(active, 25_000)
+    expect(paused.pausedAt).toBe(25_000)
+    expect(paused.elapsedMs).toBe(15_000)
+    // Time advancing while paused does not increase elapsedMs.
+    expect(getElapsedMs(paused, 1_000_000)).toBe(15_000)
+
+    const resumed: QuizSession = { ...paused, pausedAt: undefined, resumedAt: 1_000_000 }
+    expect(getElapsedMs(resumed, 1_020_000)).toBe(35_000)
   })
 })
 

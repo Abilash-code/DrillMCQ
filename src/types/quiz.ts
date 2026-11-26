@@ -58,6 +58,12 @@ export interface QuizSession {
   status: 'active' | 'finished'
   /** Epoch ms when the quiz started (used to restore the timer). */
   startedAt: number
+  /** Active milliseconds accumulated before the current resumed segment. */
+  elapsedMs?: number
+  /** Epoch ms when the current active segment started (after a pause/resume). */
+  resumedAt?: number
+  /** Epoch ms when the session was paused via exit; undefined while running. */
+  pausedAt?: number
   /** Total time in minutes. 0 = untimed. */
   timerMinutes: number
   /**
@@ -88,6 +94,9 @@ export interface SavedQuizProgress {
   revealed: number[]
   currentIndex: number
   startedAt: number
+  elapsedMs?: number
+  resumedAt?: number
+  pausedAt?: number
   timerMinutes: number
   settings: QuizSettings
   /** Epoch ms of the last change, for "last active" display. */
